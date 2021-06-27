@@ -1,5 +1,6 @@
 from maze_env import Maze
-from RL_brain import DeepQNetwork
+# from RL_brain import DeepQNetwork
+from myDQNetwork import DeepQNetwork
 
 
 def run_maze():

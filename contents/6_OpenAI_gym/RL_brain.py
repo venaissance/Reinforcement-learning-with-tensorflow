@@ -12,7 +12,10 @@ gym: 0.8.0
 
 import numpy as np
 import pandas as pd
-import tensorflow as tf
+# import tensorflow as tf
+import tensorflow._api.v2.compat.v1 as tf
+
+tf.disable_v2_behavior()
 
 
 # Deep Q Network off-policy
@@ -91,7 +94,7 @@ class DeepQNetwork:
             self._train_op = tf.train.RMSPropOptimizer(self.lr).minimize(self.loss)
 
         # ------------------ build target_net ------------------
-        self.s_ = tf.placeholder(tf.float32, [None, self.n_features], name='s_')    # input
+        self.s_ = tf.placeholder(tf.float32, [None, self.n_features], name='s_')  # input
         with tf.variable_scope('target_net'):
             # c_names(collections_names) are the collections to store variables
             c_names = ['target_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
@@ -203,6 +206,3 @@ class DeepQNetwork:
         plt.ylabel('Cost')
         plt.xlabel('training steps')
         plt.show()
-
-
-

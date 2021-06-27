@@ -7,7 +7,7 @@ View more on my tutorial page: https://morvanzhou.github.io/tutorials/
 
 Using:
 Tensorflow: 1.0
-gym: 0.7.3
+gym: 0.8.0
 """
 
 import numpy as np
@@ -16,9 +16,6 @@ import pandas as pd
 import tensorflow._api.v2.compat.v1 as tf
 
 tf.disable_v2_behavior()
-
-np.random.seed(1)
-tf.set_random_seed(1)
 
 
 # Deep Q Network off-policy
@@ -51,12 +48,14 @@ class DeepQNetwork:
         self.learn_step_counter = 0
 
         # initialize zero memory [s, a, r, s_]
+        # 对一条记忆信息而言s和s_都有n_features的长度，而a和r都各有一个单值信息，所以是 n_features*2 + 2
         self.memory = np.zeros((self.memory_size, n_features * 2 + 2))
 
-        # consist of [target_net, evaluate_net]
+        # 创建[target_net, evaluate_net]
         self._build_net()
         t_params = tf.get_collection('target_net_params')
         e_params = tf.get_collection('eval_net_params')
+        # 更新target_net参数, tf.assign(t, e)：将e值赋给t
         self.replace_target_op = [tf.assign(t, e) for t, e in zip(t_params, e_params)]
 
         self.sess = tf.Session()
@@ -112,6 +111,7 @@ class DeepQNetwork:
             with tf.variable_scope('l2'):
                 w2 = tf.get_variable('w2', [n_l1, self.n_actions], initializer=w_initializer, collections=c_names)
                 b2 = tf.get_variable('b2', [1, self.n_actions], initializer=b_initializer, collections=c_names)
+                # tf.matmul(l1, w2): 矩阵相乘
                 self.q_next = tf.matmul(l1, w2) + b2
 
     def store_transition(self, s, a, r, s_):
@@ -139,33 +139,53 @@ class DeepQNetwork:
         return action
 
     def learn(self):
-        # check to replace target parameters
+        # 每经过replace_target_iter步替换target_net参数
         if self.learn_step_counter % self.replace_target_iter == 0:
             self.sess.run(self.replace_target_op)
             print('\ntarget_params_replaced\n')
-
-        # sample batch memory from all memory
+        # 从所有的memory中抽取batch_size的memory
         if self.memory_counter > self.memory_size:
             sample_index = np.random.choice(self.memory_size, size=self.batch_size)
         else:
+            # 如果还没存满，则从最多已记忆的数量memory_counter中抽样已保存的经验
             sample_index = np.random.choice(self.memory_counter, size=self.batch_size)
-        batch_memory = self.memory[sample_index, :]
 
+        # 从memory（500, 10）中取sample取sample_index列，从而获得记忆库中的经验
+        # batch_memory的shape为(32, 10)
+        batch_memory = self.memory[sample_index, :]
+        # 运行两个神经网络，更新q值(q_next通过target_net获取，q_eval通过predict_net)
         q_next, q_eval = self.sess.run(
             [self.q_next, self.q_eval],
             feed_dict={
-                self.s_: batch_memory[:, -self.n_features:],  # fixed params
-                self.s: batch_memory[:, :self.n_features],  # newest params
-            })
-
-        # change q_target w.r.t q_eval's action
+                # q_next用target_net中倒数n_feature个列(observation_)的值作为输入s_
+                # WHY? 因为记忆库中的经验保存格式为[s, a, r, s_]
+                self.s_: batch_memory[:, -self.n_features:],
+                # q_eval用predict_net中正数n_feature个列(observation)的值作为输入s
+                self.s: batch_memory[:, :self.n_features]
+            }
+        )
         q_target = q_eval.copy()
-
+        # 取得一个长度为self.batch_size的索引值列表array([0, 1, 2, ..., 31])
         batch_index = np.arange(self.batch_size, dtype=np.int32)
+        # 提取action，它在记忆库batch_memory中的第n_feature+1列
+        # WHY? 因为记忆库中的经验保存格式为[s, a, r, s_], state占n_feature列，所以action在第n_feature+1列
         eval_act_index = batch_memory[:, self.n_features].astype(int)
+        # 提取reward
         reward = batch_memory[:, self.n_features + 1]
-
+        # 更新q_target, q_next的shape是(32, 2)，np.max(q_next, axis=1).shape是(32,)
         q_target[batch_index, eval_act_index] = reward + self.gamma * np.max(q_next, axis=1)
+        # 训练eval_net
+        # _train_op由目标值网络用记忆库中的state（observation，是前n_features列的值）做输入s
+        # loss由q_target的值带入
+        _, self.cost = self.sess.run([self._train_op, self.loss],
+                                     feed_dict={
+                                         self.s: batch_memory[:, :self.n_features],
+                                         self.q_target: q_target
+                                     })
+        self.cost_his.append(self.cost)
+        self.epsilon = self.epsilon + self.epsilon_increment if self.epsilon < self.epsilon_max else self.epsilon_max
+        # 记录总的学习次数
+        self.learn_step_counter += 1
 
         """
         For example in this batch I have 2 samples and 3 actions:
@@ -192,16 +212,6 @@ class DeepQNetwork:
         We then backpropagate this error w.r.t the corresponding action to network,
         leave other action as error=0 cause we didn't choose it.
         """
-
-        # train eval network
-        _, self.cost = self.sess.run([self._train_op, self.loss],
-                                     feed_dict={self.s: batch_memory[:, :self.n_features],
-                                                self.q_target: q_target})
-        self.cost_his.append(self.cost)
-
-        # increasing epsilon
-        self.epsilon = self.epsilon + self.epsilon_increment if self.epsilon < self.epsilon_max else self.epsilon_max
-        self.learn_step_counter += 1
 
     def plot_cost(self):
         import matplotlib.pyplot as plt
