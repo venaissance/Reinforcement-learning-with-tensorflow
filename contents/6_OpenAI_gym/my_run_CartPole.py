@@ -77,4 +77,4 @@ def training(max_episodes=100):
     env.close()
 
 
-training(50)
+training(200)
