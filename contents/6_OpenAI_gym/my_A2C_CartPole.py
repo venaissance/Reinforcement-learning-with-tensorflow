@@ -1,9 +1,12 @@
 import gym
 import numpy as np
-import tensorflow._api.v2.compat.v1 as tf
 import matplotlib.pyplot as plt
+import tensorflow as tf
 
-tf.disable_v2_behavior()
+if (tf.__version__ >= '2'):
+    import tensorflow._api.v2.compat.v1 as tf
+
+    tf.disable_v2_behavior()
 
 
 class ActorNetwork(object):

@@ -12,9 +12,13 @@ tensorflow r1.3
 gym 0.8.0
 """
 
-import tensorflow as tf
-import numpy as np
 import gym
+import time
+import numpy as np
+import tensorflow._api.v2.compat.v1 as tf
+import matplotlib.pyplot as plt
+
+tf.disable_v2_behavior()
 
 np.random.seed(2)
 tf.set_random_seed(2)  # reproducible

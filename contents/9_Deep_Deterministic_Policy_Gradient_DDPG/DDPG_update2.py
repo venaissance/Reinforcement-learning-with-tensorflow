@@ -14,10 +14,16 @@ tensorflow 1.0
 gym 0.8.0
 """
 
-import tensorflow as tf
-import numpy as np
 import gym
 import time
+import numpy as np
+import matplotlib.pyplot as plt
+import tensorflow as tf
+
+if (tf.__version__ >= '2'):
+    import tensorflow._api.v2.compat.v1 as tf
+
+    tf.disable_v2_behavior()
 
 
 #####################  hyper parameters  ####################

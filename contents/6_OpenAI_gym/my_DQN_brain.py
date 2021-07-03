@@ -12,10 +12,12 @@ gym: 0.8.0
 
 import numpy as np
 import pandas as pd
-# import tensorflow as tf
-import tensorflow._api.v2.compat.v1 as tf
+import tensorflow as tf
 
-tf.disable_v2_behavior()
+if (tf.__version__ >= '2'):
+    import tensorflow._api.v2.compat.v1 as tf
+
+    tf.disable_v2_behavior()
 
 
 # Deep Q Network off-policy

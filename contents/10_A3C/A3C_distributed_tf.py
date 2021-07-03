@@ -8,17 +8,21 @@ View more on my tutorial page: https://morvanzhou.github.io/
 """
 
 import multiprocessing as mp
-import tensorflow as tf
 import numpy as np
 import gym, time
 import matplotlib.pyplot as plt
+import tensorflow as tf
 
+if (tf.__version__ >= '2'):
+    import tensorflow._api.v2.compat.v1 as tf
+
+    tf.disable_v2_behavior()
 
 UPDATE_GLOBAL_ITER = 10
 GAMMA = 0.9
 ENTROPY_BETA = 0.001
-LR_A = 0.001    # learning rate for actor
-LR_C = 0.001    # learning rate for critic
+LR_A = 0.001  # learning rate for actor
+LR_C = 0.001  # learning rate for critic
 
 env = gym.make('CartPole-v0')
 N_S = env.observation_space.shape[0]
@@ -65,7 +69,8 @@ class ACNet(object):
                     self.pull_a_params_op = [l_p.assign(g_p) for l_p, g_p in zip(self.a_params, global_net.a_params)]
                     self.pull_c_params_op = [l_p.assign(g_p) for l_p, g_p in zip(self.c_params, global_net.c_params)]
                 with tf.name_scope('push'):
-                    self.update_a_op = opt_a.apply_gradients(zip(self.a_grads, global_net.a_params), global_step=self.global_step)
+                    self.update_a_op = opt_a.apply_gradients(zip(self.a_grads, global_net.a_params),
+                                                             global_step=self.global_step)
                     self.update_c_op = opt_c.apply_gradients(zip(self.c_grads, global_net.c_params))
 
     def _build_net(self, scope):
@@ -96,8 +101,8 @@ class ACNet(object):
 def work(job_name, task_index, global_ep, lock, r_queue, global_running_r):
     # set work's ip:port
     cluster = tf.train.ClusterSpec({
-        "ps": ['localhost:2220', 'localhost:2221',],
-        "worker": ['localhost:2222', 'localhost:2223', 'localhost:2224', 'localhost:2225',]
+        "ps": ['localhost:2220', 'localhost:2221', ],
+        "worker": ['localhost:2222', 'localhost:2223', 'localhost:2224', 'localhost:2225', ]
     })
     server = tf.train.Server(cluster, job_name=job_name, task_index=task_index)
     if job_name == 'ps':
@@ -119,7 +124,7 @@ def work(job_name, task_index, global_ep, lock, r_queue, global_running_r):
         hooks = [tf.train.StopAtStepHook(last_step=100000)]
         with tf.train.MonitoredTrainingSession(master=server.target,
                                                is_chief=True,
-                                               hooks=hooks,) as sess:
+                                               hooks=hooks, ) as sess:
             print('Start Worker Session: ', task_index)
             local_net.sess = sess
             total_step = 1
@@ -178,7 +183,7 @@ def work(job_name, task_index, global_ep, lock, r_queue, global_running_r):
                             global_ep.value += 1
                         break
 
-        print('Worker Done: ', task_index, time.time()-t1)
+        print('Worker Done: ', task_index, time.time() - t1)
 
 
 if __name__ == "__main__":
@@ -204,6 +209,3 @@ if __name__ == "__main__":
     plt.xlabel('Step')
     plt.ylabel('Total moving reward')
     plt.show()
-
-
-

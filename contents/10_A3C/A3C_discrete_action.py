@@ -12,13 +12,17 @@ gym 0.10.5
 
 import multiprocessing
 import threading
-import tensorflow as tf
 import numpy as np
 import gym
 import os
 import shutil
 import matplotlib.pyplot as plt
+import tensorflow as tf
 
+if (tf.__version__ >= '2'):
+    import tensorflow._api.v2.compat.v1 as tf
+
+    tf.disable_v2_behavior()
 
 GAME = 'CartPole-v0'
 OUTPUT_GRAPH = True
@@ -29,8 +33,8 @@ GLOBAL_NET_SCOPE = 'Global_Net'
 UPDATE_GLOBAL_ITER = 10
 GAMMA = 0.9
 ENTROPY_BETA = 0.001
-LR_A = 0.001    # learning rate for actor
-LR_C = 0.001    # learning rate for critic
+LR_A = 0.001  # learning rate for actor
+LR_C = 0.001  # learning rate for critic
 GLOBAL_RUNNING_R = []
 GLOBAL_EP = 0
 
@@ -42,11 +46,11 @@ N_A = env.action_space.n
 class ACNet(object):
     def __init__(self, scope, globalAC=None):
 
-        if scope == GLOBAL_NET_SCOPE:   # get global network
+        if scope == GLOBAL_NET_SCOPE:  # get global network
             with tf.variable_scope(scope):
                 self.s = tf.placeholder(tf.float32, [None, N_S], 'S')
                 self.a_params, self.c_params = self._build_net(scope)[-2:]
-        else:   # local net, calculate losses
+        else:  # local net, calculate losses
             with tf.variable_scope(scope):
                 self.s = tf.placeholder(tf.float32, [None, N_S], 'S')
                 self.a_his = tf.placeholder(tf.int32, [None, ], 'A')
@@ -59,7 +63,8 @@ class ACNet(object):
                     self.c_loss = tf.reduce_mean(tf.square(td))
 
                 with tf.name_scope('a_loss'):
-                    log_prob = tf.reduce_sum(tf.log(self.a_prob + 1e-5) * tf.one_hot(self.a_his, N_A, dtype=tf.float32), axis=1, keep_dims=True)
+                    log_prob = tf.reduce_sum(tf.log(self.a_prob + 1e-5) * tf.one_hot(self.a_his, N_A, dtype=tf.float32),
+                                             axis=1, keep_dims=True)
                     exp_v = log_prob * tf.stop_gradient(td)
                     entropy = -tf.reduce_sum(self.a_prob * tf.log(self.a_prob + 1e-5),
                                              axis=1, keep_dims=True)  # encourage exploration
@@ -127,18 +132,19 @@ class Worker(object):
                 buffer_a.append(a)
                 buffer_r.append(r)
 
-                if total_step % UPDATE_GLOBAL_ITER == 0 or done:   # update global and assign to local net
+                if total_step % UPDATE_GLOBAL_ITER == 0 or done:  # update global and assign to local net
                     if done:
-                        v_s_ = 0   # terminal
+                        v_s_ = 0  # terminal
                     else:
                         v_s_ = SESS.run(self.AC.v, {self.AC.s: s_[np.newaxis, :]})[0, 0]
                     buffer_v_target = []
-                    for r in buffer_r[::-1]:    # reverse buffer r
+                    for r in buffer_r[::-1]:  # reverse buffer r
                         v_s_ = r + GAMMA * v_s_
                         buffer_v_target.append(v_s_)
                     buffer_v_target.reverse()
 
-                    buffer_s, buffer_a, buffer_v_target = np.vstack(buffer_s), np.array(buffer_a), np.vstack(buffer_v_target)
+                    buffer_s, buffer_a, buffer_v_target = np.vstack(buffer_s), np.array(buffer_a), np.vstack(
+                        buffer_v_target)
                     feed_dict = {
                         self.AC.s: buffer_s,
                         self.AC.a_his: buffer_a,
@@ -160,9 +166,10 @@ class Worker(object):
                         self.name,
                         "Ep:", GLOBAL_EP,
                         "| Ep_r: %i" % GLOBAL_RUNNING_R[-1],
-                          )
+                    )
                     GLOBAL_EP += 1
                     break
+
 
 if __name__ == "__main__":
     SESS = tf.Session()
@@ -174,7 +181,7 @@ if __name__ == "__main__":
         workers = []
         # Create worker
         for i in range(N_WORKERS):
-            i_name = 'W_%i' % i   # worker name
+            i_name = 'W_%i' % i  # worker name
             workers.append(Worker(i_name, GLOBAL_AC))
 
     COORD = tf.train.Coordinator()
