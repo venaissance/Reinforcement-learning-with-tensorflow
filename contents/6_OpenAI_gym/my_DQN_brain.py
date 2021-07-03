@@ -170,7 +170,7 @@ class DeepQNetwork:
         # 提取action，它在记忆库batch_memory中的第n_feature+1列
         # WHY? 因为记忆库中的经验保存格式为[s, a, r, s_], state占n_feature列，所以action在第n_feature+1列
         eval_act_index = batch_memory[:, self.n_features].astype(int)
-        # 提取reward
+        # 提取reward, 在act右边一列
         reward = batch_memory[:, self.n_features + 1]
         # 更新q_target, q_next的shape是(32, 2)，np.max(q_next, axis=1).shape是(32,)
         q_target[batch_index, eval_act_index] = reward + self.gamma * np.max(q_next, axis=1)

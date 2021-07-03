@@ -9,7 +9,7 @@ gym: 0.7.3
 import gym
 import numpy as np
 
-from my_RL_brain import DeepQNetwork
+from my_DQN_brain import DeepQNetwork
 import matplotlib.pyplot as plt
 
 env = gym.make('CartPole-v0')
